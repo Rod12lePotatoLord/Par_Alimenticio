@@ -1,0 +1,146 @@
+import random
+import time
+
+# (Bibliotecas importadas por Rodrigo)
+
+# =======================================================================
+# Par Alimentício: Jogo da Memória de Comidas em Python (Versão Terminal)
+# =======================================================================
+
+# (Raiane) Entrada do Jogador.
+jogador = input("Digite seu nome: ")
+
+# (Rodrigo) Cria o tabuleiro embaralhado com os pares de emojis.
+def criar_tabuleiro(tamanho):
+    emojis = ['🍎', '🍌', '🍇', '🍓', '🍒', '🍍', '🥝', '🍉',
+              '🥑', '🍑', '🍋', '🍊', '🫐', '🥥', '🌽', '🥕',
+              '🍈', '🧄', '🍅', '🫛', '🥔', '🥦', '🫑', '🧅',
+              '🍄', '🌶️', '🫒', '🥬', '🫘', '🥜', '🌰', '🍞']
+
+    pares_necessarios = (tamanho * tamanho) // 2
+    todos_emojis = (emojis * ((pares_necessarios // len(emojis)) + 1))[:pares_necessarios]
+    todos_emojis *=2
+    random.shuffle(todos_emojis)
+    return [todos_emojis[i * tamanho:(i + 1) * tamanho] for i in range(tamanho)]
+
+# (Rodrigo) Exibe o tabuleiro, mostrando as cartas viradas ou ocultas
+def mostrar_tabuleiro(tabuleiro, visivel):
+    print(" " + " ".join([f'{i:2}' for i in range(len(tabuleiro[0]))]))
+    for i, linha in enumerate(tabuleiro):
+        row = f'{i:2}'
+        for j, simbolo in enumerate(linha):
+            row += f'{simbolo if visivel[i][j] else "⬜":2}'
+        print(row)
+
+# (Rodrigo) Verifica se as cartas escolhidas formam um par
+def verificar_par(tabuleiro, x1, y1, x2, y2):
+    return tabuleiro[x1][y1] == tabuleiro[x2][y2]
+
+# (Rodrigo) Executa um nível do Jogo da Memória
+def jogar_nivel(nivel, tamanho_linhas, tamanho_colunas, tempo_limite=600, obter_coordenadas=None):
+    print(f"Seja bem-vindo(a) {jogador} ao Nível {nivel} - Tabuleiro de {tamanho_linhas}x{tamanho_colunas}.")
+    tabuleiro = criar_tabuleiro(tamanho_linhas)
+    visivel = [[False for _ in range(tamanho_colunas)] for _ in range(tamanho_linhas)]
+
+    tentativas = 0
+    inicio = time.time()
+
+    while not all(all(linha) for linha in visivel):
+        if time.time() - inicio > tempo_limite:
+            print(" Tempo esgotado! Tente outra vez.")
+            return False, tentativas
+
+        mostrar_tabuleiro(tabuleiro, visivel)
+        print()
+        x1, y1 = obter_coordenadas("Para começar, escolha a primeira carta (linha coluna): ", tamanho_linhas, tamanho_colunas, visivel)
+        visivel[x1][y1] = True
+        mostrar_tabuleiro(tabuleiro, visivel)
+
+        x2, y2 = obter_coordenadas("Agora, escolha a segunda carta (linha coluna): ", tamanho_linhas, tamanho_colunas, visivel)
+        visivel[x2][y2] = True
+        mostrar_tabuleiro(tabuleiro, visivel)
+
+        if not verificar_par(tabuleiro, x1, y1, x2, y2):
+            print(" Não é um par! Tente outra vez.")
+            time.sleep(1)
+            visivel[x1][y1] = False
+            visivel[x2][y2] = False
+        else:
+            print(" Par encontrado, muito bem!")
+
+        tentativas += 1
+
+    print(f" Nível {nivel} vencido em {tentativas} tentativas!")
+    return True, tentativas
+
+# (Rodrigo) Executa o Jogo da Memória até completar todos os níveis ou o tempo acabar
+def jogo_da_memoria(obter_coordenadas=None):
+    niveis = [
+        (4, 4),
+        (4, 4),
+        (6, 6)
+    ]
+    total_tentativas = 0
+    inicio = time.time()
+
+    for i, (lin, col) in enumerate(niveis, start=1):
+        venceu, tentativas = jogar_nivel(i, lin, col, obter_coordenadas=obter_coordenadas)
+        if not venceu:
+            print("Fim de jogo! Você não completou todos os níveis, mais sorte na próxima.")
+            return None, None  # <-- Retorne dois valores aqui
+        total_tentativas += tentativas
+
+    tempo_total = int(time.time() - inicio)
+    print(f"\n Jogo vencido! Parabéns!")
+    print(f" Seu total de tentativas: {total_tentativas}")
+    print(f" Tempo total de jogo: {tempo_total // 60} minutos e {tempo_total % 60} segundos.")
+    return total_tentativas, tempo_total  # <-- Retorne dois valores aqui
+
+# (Raiane) Solicita que o jogador informe as coordenadas corretas (Pares ainda não virados) dentro do tabuleiro
+def obter_coordenadas(mensagem, linhas, colunas, visivel):
+    while True:
+        try:
+            entrada = input(mensagem).strip()
+            x, y = map(int, entrada.split())
+            if 0 <= x < linhas and 0 <= y < colunas and not visivel[x][y]:
+                return x, y
+            elif not (0 <= x < linhas and 0 <= y < colunas):
+                print("Coordenadas fora do tabuleiro, tente novamente!")
+            else:
+                print("Essa carta já está virada, escolha outra carta!")
+        except ValueError:
+            print("Entrada inválida, por favor digite dois números separados por espaço.")
+# (Raiane)
+def salvar_ranking(nome, tentativas, tempo_total):
+    with open("ranking.txt", "a", encoding="utf-8") as arquivo:
+        arquivo.write(f"{nome};{tentativas};{tempo_total}\n")
+# (Raiane)
+def mostrar_ranking():
+    try:
+        with open("ranking.txt", "r", encoding="utf-8") as arquivo:
+            linhas = arquivo.readlines()
+            if not linhas:
+                print("⚠️ Ainda não há dados no ranking.")
+                return
+            dados = []
+            for linha in linhas:
+                partes = linha.strip().split(";")
+                if len(partes) == 3:
+                    nome, tentativas, tempo = partes
+                    dados.append((nome, int(tentativas), int(tempo)))
+            # Ordena por tentativas e depois por tempo
+            dados.sort(key=lambda x: (x[1], x[2]))
+            print("\n🏆 Ranking dos Melhores Jogadores 🏆")
+            print(f"{'Nome':<15}{'Tentativas':<12}{'Tempo (s)':<10}")
+            print("-" * 40)
+            for nome, tentativas, tempo in dados[:10]:  # Mostra top 10
+                print(f"{nome:<15}{tentativas:<12}{tempo:<10}")
+    except FileNotFoundError:
+        print("⚠️ Ainda não há dados no ranking.")
+
+# --- INÍCIO DO JOGO (Raiane) ---
+if __name__ == "__main__":
+    total_tentativas, tempo_total = jogo_da_memoria(obter_coordenadas)
+    if total_tentativas is not None and tempo_total is not None:
+        salvar_ranking(jogador, total_tentativas, tempo_total)
+    mostrar_ranking()
